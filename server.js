@@ -4,12 +4,13 @@ var passport = require('passport');
 var authJwtController = require('./auth_jwt');
 var User = require('./Users');
 var Movie = require('./Movies'); //I added this to make my own schema for movies in that file
+var Review = require('./Reviews');
 var jwt = require('jsonwebtoken');
 var cors = require('cors');
 
 var app = express();
 module.exports = app; // for testing
-app.use(cors())
+app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 
