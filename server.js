@@ -203,12 +203,13 @@ router.route('/movies')
 
 router.route('/review')
     .post(authJwtController.isAuthenticated, function(req, res){
-        if(req.body.name && req.body.review_quote && req.body.rating){
+        if(req.body.name && req.body.review_quote && req.body.rating && req.body.movie_ID){
             //if a name and review quote and rating exists
             var review = new Review();
             review.name = req.body.name;
             review.review_quote = req.body.review_quote;
             review.rating = req.body.rating;
+            review.movie_ID = req.body.movie_ID;
             review.save(function (err) {
                 if (err) {
                     return res.send(err);
@@ -225,9 +226,23 @@ router.route('/review')
             });
         }
         else{
-            res.status(400).send({success: false, message: 'Please include name, review_quote, and rating'});
+            res.status(400).send({success: false, message: 'Please include name, review_quote, rating, and movie_ID'});
         }
+    })
+    .get(function(req,res){
+        Review.find(function (err, result) {
+            if (err) {
+                return res.send(err);
+            }
+            else{
+                res.send(result);
+            }
+        });
+    })
+    .all(function (req, res) {
+        res.status(405).send({msg: 'this method is not supported'});
     });
+
 
 app.use('/', router);
 app.listen(process.env.PORT || 8080);
