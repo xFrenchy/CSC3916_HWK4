@@ -147,7 +147,56 @@ router.route('/movies')
                 return res.send(err);
             }
             else{
-                res.send(result);
+                if(req.query.moviename){
+                    //find the movie that matches
+                    let jsonToSend;
+                    var movieJson;
+                    var reviewJson;
+                    var movie_found= false;
+                    for(let i = 0; i < result.length; ++i){
+                        if(req.query.moviename === result[i]._doc.title){
+                            //store the result from the match
+                            movieJson = result[i]._doc;
+                            movie_found = true;
+                            break;  //break out of for loop hopefully
+                        }
+                    }
+                    //check if we need to find the reviews for it as well
+                    //TODO check if there was a movie found in the first place with that movie name
+                    if(movie_found === false){
+                        res.send("No movies exists with that title!");
+                        return;
+                    }
+                    //jsonToSend = movieJson;
+                    if(req.query.reviews === "true"){
+                        Review.find(function(err, result){
+                            if(err){
+                                return res.send(err);
+                            }
+                            else{
+                                for(let i = 0; i < result.length; ++i){
+                                    if(movieJson.movie_ID === result[i]._doc.movie_ID){
+                                        reviewJson = result[i]._doc;
+                                        break;
+                                    }
+                                }
+                                //reviewJson either has a review or no review exists for that movie
+                                //TODO check if we found a review or not
+                                //jsonToSend += reviewJson;
+                                jsonToSend = Object.assign(movieJson, reviewJson);
+                                res.send(jsonToSend);
+                            }
+                        })
+                    }
+                    else{
+                        //if not, simply display that specific movie
+                        res.send(movieJson);
+                    }
+                }
+                else{
+                    //no specific movie, display them all
+                    res.send(result);
+                }
             }
         });
         //res.send(Movie.find());
