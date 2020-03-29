@@ -16,7 +16,8 @@ var MovieSchema = new Schema({
     year_released: {type: String, required: true},
     genre: {type: String, required: true},
     actor_name: {type: Array, required: true},
-    character_name: {type: Array, required: true}
+    character_name: {type: Array, required: true},
+    movie_ID: {type: Number, required: true}
 });
 
 // using the built-in save function and simply displaying a message

@@ -103,7 +103,7 @@ router.route('/movies')
     .post(authJwtController.isAuthenticated, function (req, res) {
         //Figure out if post needs jwt
         //If there is a tittle, there exists a year released, there exists a genre
-        if (req.body.title || req.body.year_released || req.body.genre){
+        if (req.body.title && req.body.year_released && req.body.genre){
             //check if the actor name array and character name array are at least of size 3
             //https://stackoverflow.com/questions/15209136/how-to-count-length-of-the-json-array-element    <- find length of json array
           if(Object.keys(req.body.actor_name).length < 3 || Object.keys(req.body.character_name).length < 3){
@@ -118,6 +118,7 @@ router.route('/movies')
               movies.genre = req.body.genre;
               movies.actor_name = req.body.actor_name;
               movies.character_name = req.body.character_name;
+              movies.movie_ID = req.body.movie_ID;
               //try to save the movie schema into our database
               movies.save(function (err) {
                   if (err) {
@@ -198,6 +199,34 @@ router.route('/movies')
     })
     .all(function (req, res) {
         res.status(405).send({msg: 'this method is not supported'});
+    });
+
+router.route('/review')
+    .post(authJwtController.isAuthenticated, function(req, res){
+        if(req.body.name && req.body.review_quote && req.body.rating){
+            //if a name and review quote and rating exists
+            var review = new Review();
+            review.name = req.body.name;
+            review.review_quote = req.body.review_quote;
+            review.rating = req.body.rating;
+            review.save(function (err) {
+                if (err) {
+                    return res.send(err);
+                }
+                else {
+                    res.status(200).send({
+                        status: 200,
+                        msg: 'review saved',
+                        headers: req.headers,
+                        query: req.query,
+                        env: process.env.UNIQUE_KEY
+                    });
+                }
+            });
+        }
+        else{
+            res.status(400).send({success: false, message: 'Please include name, review_quote, and rating'});
+        }
     });
 
 app.use('/', router);
