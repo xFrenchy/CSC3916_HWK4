@@ -162,7 +162,6 @@ router.route('/movies')
                         }
                     }
                     //check if we need to find the reviews for it as well
-                    //TODO check if there was a movie found in the first place with that movie name
                     if(movie_found === false){
                         res.send("No movies exists with that title!");
                         return;
@@ -174,16 +173,22 @@ router.route('/movies')
                                 return res.send(err);
                             }
                             else{
+                                var review_found = false;
                                 for(let i = 0; i < result.length; ++i){
                                     if(movieJson.movie_ID === result[i]._doc.movie_ID){
                                         reviewJson = result[i]._doc;
+                                        review_found = true;
                                         break;
                                     }
                                 }
                                 //reviewJson either has a review or no review exists for that movie
-                                //TODO check if we found a review or not
-                                //jsonToSend += reviewJson;
-                                jsonToSend = Object.assign(movieJson, reviewJson);
+                                if(review_found) {
+                                    jsonToSend = Object.assign(movieJson, reviewJson);
+                                }
+                                else{
+                                    var tempJson = {"msg": "No reviews found for this movie!"};
+                                    jsonToSend = Object.assign(movieJson, tempJson);
+                                }
                                 res.send(jsonToSend);
                             }
                         })
@@ -254,25 +259,39 @@ router.route('/review')
     .post(authJwtController.isAuthenticated, function(req, res){
         if(req.body.name && req.body.review_quote && req.body.rating && req.body.movie_ID){
             //if a name and review quote and rating exists
-            var review = new Review();
-            review.name = req.body.name;
-            review.review_quote = req.body.review_quote;
-            review.rating = req.body.rating;
-            review.movie_ID = req.body.movie_ID;
-            review.save(function (err) {
-                if (err) {
-                    return res.send(err);
-                }
-                else {
-                    res.status(200).send({
-                        status: 200,
-                        msg: 'review saved',
-                        headers: req.headers,
-                        query: req.query,
-                        env: process.env.UNIQUE_KEY
-                    });
+            //having a hard time making the find function tell me if it exists or not without me looking at what it finds
+            let match = false;
+            Review.find({}, {"movie_ID": req.body.movie_ID}, function(err, match){
+                console.log(match);
+                for(let i = 1; i < match.length; ++i) {
+                    if(match[1]._doc.movie_ID === req.body.movie_ID){
+                        match = true;
+                    }
                 }
             });
+            if(match === false){
+                res.status(400).send({success: false, message: 'movie_ID does not match any movies in the database'});
+            }
+            else {
+                var review = new Review();
+                review.name = req.body.name;
+                review.review_quote = req.body.review_quote;
+                review.rating = req.body.rating;
+                review.movie_ID = req.body.movie_ID;
+                review.save(function (err) {
+                    if (err) {
+                        return res.send(err);
+                    } else {
+                        res.status(200).send({
+                            status: 200,
+                            msg: 'review saved',
+                            headers: req.headers,
+                            query: req.query,
+                            env: process.env.UNIQUE_KEY
+                        });
+                    }
+                });
+            }
         }
         else{
             res.status(400).send({success: false, message: 'Please include name, review_quote, rating, and movie_ID'});
