@@ -7,6 +7,8 @@ var Movie = require('./Movies'); //I added this to make my own schema for movies
 var Review = require('./Reviews');
 var jwt = require('jsonwebtoken');
 var cors = require('cors');
+const crypto = require("crypto");
+var rp = require('request-promise');
 
 var app = express();
 module.exports = app; // for testing
@@ -17,6 +19,50 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(passport.initialize());
 
 var router = express.Router();
+const GA_TRACKING_ID = process.env.GA_KEY;
+
+function trackDimension(category, action, label, value, dimension, metric) {
+    var options = { method: 'GET',
+        url: 'https://www.google-analytics.com/collect',
+        qs:
+            {   // API Version.
+                v: '1',
+                // Tracking ID / Property ID.
+                tid: GA_TRACKING_ID,
+                // Random Client Identifier. Ideally, this should be a UUID that
+                // is associated with particular user, device, or browser instance.
+                cid: crypto.randomBytes(16).toString("hex"),
+                // Event hit type.
+                t: 'event',
+                // Event category.
+                ec: category,
+                // Event action.
+                ea: action,
+                // Event label.
+                el: label,
+                // Event value.
+                ev: value,
+                // Custom Dimension
+                cd1: dimension,
+                // Custom Metric
+                cm1: metric
+            },
+        headers:
+            {  'Cache-Control': 'no-cache' } };
+    return rp(options);
+}
+
+
+router.route('/test')
+    .get(function (req, res) {
+        // Event value must be numeric.
+        trackDimension('Feedback', 'Rating', 'Feedback for Movie', '5', 'Guardians of the Galaxy 2', '1')
+            .then(function (response) {
+                console.log(response.body);
+                res.status(200).send('Event tracked.').end();
+            })
+    });
+
 
 router.route('/postjwt')
     .post(authJwtController.isAuthenticated, function (req, res) {
@@ -260,38 +306,34 @@ router.route('/review')
         if(req.body.name && req.body.review_quote && req.body.rating && req.body.movie_ID){
             //if a name and review quote and rating exists
             //having a hard time making the find function tell me if it exists or not without me looking at what it finds
-            let match = false;
-            Review.find({}, {"movie_ID": req.body.movie_ID}, function(err, match){
-                console.log(match);
-                for(let i = 1; i < match.length; ++i) {
-                    if(match[1]._doc.movie_ID === req.body.movie_ID){
-                        match = true;
-                    }
+            //https://mongoosejs.com/docs/api.html#model_Model.find
+            Movie.find({movie_ID : parseInt(req.body.movie_ID)}, null, function (err, docs) {
+                if(docs.length > 0) {
+                    //there is a match
+                    var review = new Review();
+                    review.name = req.body.name;
+                    review.review_quote = req.body.review_quote;
+                    review.rating = req.body.rating;
+                    review.movie_ID = req.body.movie_ID;
+                    trackDimension(docs[0]._doc.genre, 'post/review', 'POST', review.rating, docs[0]._doc.title, '1')
+                    review.save(function (err) {
+                        if (err) {
+                            return res.send(err);
+                        } else {
+                            res.status(200).send({
+                                status: 200,
+                                msg: 'review saved',
+                                headers: req.headers,
+                                query: req.query,
+                                env: process.env.UNIQUE_KEY
+                            });
+                        }
+                    });
+                }
+                else{
+                    res.status(400).send({success: false, message: 'movie_ID does not match any movies in the database'});
                 }
             });
-            if(match === false){
-                res.status(400).send({success: false, message: 'movie_ID does not match any movies in the database'});
-            }
-            else {
-                var review = new Review();
-                review.name = req.body.name;
-                review.review_quote = req.body.review_quote;
-                review.rating = req.body.rating;
-                review.movie_ID = req.body.movie_ID;
-                review.save(function (err) {
-                    if (err) {
-                        return res.send(err);
-                    } else {
-                        res.status(200).send({
-                            status: 200,
-                            msg: 'review saved',
-                            headers: req.headers,
-                            query: req.query,
-                            env: process.env.UNIQUE_KEY
-                        });
-                    }
-                });
-            }
         }
         else{
             res.status(400).send({success: false, message: 'Please include name, review_quote, rating, and movie_ID'});
@@ -313,4 +355,5 @@ router.route('/review')
 
 
 app.use('/', router);
+console.log("http://localhost:8080/test");
 app.listen(process.env.PORT || 8080);
