@@ -145,6 +145,20 @@ router.post('/signin', function(req, res) {
     });
 });
 
+router.route('/movies/:reviews?')
+    .get(authJwtController.isAuthenticated, function (req, res) {
+        //In here I want to retrieve all movies that have a review attached to them
+        //That means every single movie that has an ID
+        //Let's try to make aggregate work
+        Movie.aggregate()
+            .match({movie_ID: {$gte: 1}})
+            .lookup({from: 'reviews', localField: 'movie_ID', foreignField: 'movie_ID', as: 'reviews'})
+            .exec(function (err, movie) {
+                res.send(movie);
+            })
+    });
+
+
 router.route('/movies')
     .post(authJwtController.isAuthenticated, function (req, res) {
         //Figure out if post needs jwt
@@ -165,6 +179,12 @@ router.route('/movies')
               movies.actor_name = req.body.actor_name;
               movies.character_name = req.body.character_name;
               movies.movie_ID = req.body.movie_ID;
+              if(req.body.movie_URL) {
+                  movies.movie_URL = req.body.movie_URL;
+              }
+              else{
+                  movies.movie_URL = "https://www.indiaspora.org/wp-content/uploads/2018/10/image-not-available.jpg"
+              }
               //try to save the movie schema into our database
               movies.save(function (err) {
                   if (err) {
